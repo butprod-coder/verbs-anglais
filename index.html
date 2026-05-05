@@ -273,6 +273,28 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .modal-save{flex:2;padding:14px;background:linear-gradient(135deg,#9333ea,#c084fc);border:none;border-radius:14px;font-family:var(--font-d);font-size:15px;font-weight:700;color:white;cursor:pointer;-webkit-appearance:none;transition:transform .15s;}
 .modal-save:active{transform:scale(.97);}
 
+/* SURVIVAL 4-FIELD CARD */
+.surv-card{background:var(--card);border:1px solid var(--card-border);border-radius:24px;padding:20px;position:relative;overflow:hidden;}
+.surv-card::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;background:rgba(248,113,113,0.06);border-radius:50%;}
+.surv-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.surv-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);border-radius:20px;font-size:11px;color:var(--red);letter-spacing:.04em;font-family:var(--font-d);font-weight:600;}
+.surv-fields{display:flex;flex-direction:column;gap:10px;}
+.surv-row{display:flex;align-items:center;gap:10px;}
+.surv-label{font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;width:80px;flex-shrink:0;}
+.surv-given{flex:1;padding:11px 14px;background:rgba(192,132,252,0.1);border:1.5px solid rgba(192,132,252,0.3);border-radius:12px;font-family:var(--font-d);font-size:17px;font-weight:800;color:var(--accent2);text-align:center;}
+.surv-input{flex:1;padding:11px 14px;background:var(--card);border:1.5px solid var(--card-border);border-radius:12px;font-family:var(--font-d);font-size:16px;font-weight:700;color:var(--text);outline:none;-webkit-appearance:none;text-align:center;transition:border-color .2s;}
+.surv-input::placeholder{color:rgba(167,139,202,0.3);font-weight:400;font-size:13px;}
+.surv-input:focus{border-color:var(--accent);}
+.surv-input.ok{border-color:var(--green);background:rgba(74,222,128,0.08);color:var(--green);}
+.surv-input.bad{border-color:var(--red);background:rgba(248,113,113,0.08);color:var(--red);}
+.surv-input.corrected{border-color:rgba(251,191,36,0.5);background:rgba(251,191,36,0.06);color:var(--gold);}
+.surv-correct-hint{font-size:11px;color:var(--gold);margin-top:2px;padding-left:90px;font-style:italic;display:none;}
+.surv-correct-hint.show{display:block;}
+.surv-feedback{padding:12px 14px;border-radius:14px;display:none;align-items:center;gap:10px;margin-top:2px;}
+.surv-feedback.show{display:flex;}
+.surv-feedback.ok{background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);}
+.surv-feedback.bad{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);}
+
 /* GAME OVER */
 .gameover-overlay{position:fixed;inset:0;background:rgba(15,2,37,0.85);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(4px);display:none;}
 .gameover-overlay.show{display:flex;}
@@ -846,7 +868,48 @@ function renderQuestion(){
   if(currentMode==='survival')document.getElementById('lives-row').innerHTML='❤️'.repeat(livesLeft)+'🖤'.repeat(3-livesLeft);
   const body=document.getElementById('quiz-body');
 
-  if(currentMode==='free'||currentMode==='survival'){
+  if(currentMode==='survival'){
+    // Pick a random field to pre-fill, the other 3 must be typed
+    const FIELDS = [
+      {id:'fr',   label:'Traduction'},
+      {id:'base', label:'Base verb.'},
+      {id:'pret', label:'Prétérit'},
+      {id:'pp',   label:'Part. passé'},
+    ];
+    const givenIdx = Math.floor(Math.random()*4);
+    body.innerHTML=`
+      <div class="surv-card">
+        <div class="surv-title">
+          <span class="surv-badge">❤️ Mode Survie · Complète les 3 champs</span>
+        </div>
+        <div class="surv-fields">
+          ${FIELDS.map((f,i)=>{
+            const val = q.verb[f.id];
+            const isGiven = i===givenIdx;
+            return `<div>
+              <div class="surv-row">
+                <span class="surv-label">${f.label}</span>
+                ${isGiven
+                  ? `<div class="surv-given">${val}</div>`
+                  : `<input class="surv-input" id="si-${f.id}" data-correct="${val.replace(/"/g,'&quot;')}" placeholder="?" autocomplete="off" autocorrect="off" autocapitalize="${f.id==='fr'?'sentences':'off'}" spellcheck="false" onkeydown="if(event.key==='Enter')handleAction()">`
+                }
+              </div>
+              ${!isGiven ? `<div class="surv-correct-hint" id="sh-${f.id}"></div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="surv-feedback" id="q-fb">
+        <div class="fb-icon" id="fb-ico">✓</div>
+        <div class="fb-text"><div class="fb-title" id="fb-ttl"></div></div>
+      </div>
+      <button class="action-btn btn-verify" id="q-btn" onclick="handleAction()">Vérifier les 3 champs</button>`;
+    // focus first empty input
+    setTimeout(()=>{
+      const first = body.querySelector('.surv-input');
+      if(first) first.focus();
+    },80);
+  } else if(currentMode==='free'){
     body.innerHTML=`
       <div class="verb-card">
         <div class="q-badge">📝 ${q.type.ask}</div>
@@ -882,12 +945,75 @@ function renderQuestion(){
 function handleAction(){if(!answered)verify();else nextQ();}
 
 function verify(){
+  if(currentMode==='survival'){
+    verifySurvival();
+  } else {
+    verifyFree();
+  }
+}
+
+function verifyFree(){
   const q=questions[qIdx],inp=document.getElementById('q-inp');
   if(!inp||!inp.value.trim())return;
   const correct=q.type.answer(q.verb),ok=norm(inp.value)===norm(correct);
   processAnswer(ok,correct,q);
   inp.disabled=true;inp.className='ans-input '+(ok?'ok':'bad');
   showFeedback(ok,correct);
+  const last=qIdx===questions.length-1,btn=document.getElementById('q-btn');
+  btn.className='action-btn '+(last?'btn-result':'btn-next');
+  btn.textContent=last?'Voir les résultats →':'Question suivante →';
+}
+
+function verifySurvival(){
+  const q=questions[qIdx];
+  const inputs=document.querySelectorAll('.surv-input');
+  // check all filled
+  let anyEmpty=false;
+  inputs.forEach(inp=>{if(!inp.value.trim())anyEmpty=true;});
+  if(anyEmpty){
+    // shake button briefly
+    const btn=document.getElementById('q-btn');
+    btn.style.opacity='0.6';setTimeout(()=>btn.style.opacity='',400);
+    return;
+  }
+  // evaluate each field
+  let allOk=true;
+  inputs.forEach(inp=>{
+    const correct=inp.dataset.correct;
+    const ok=norm(inp.value)===norm(correct);
+    inp.disabled=true;
+    if(ok){
+      inp.className='surv-input ok';
+    } else {
+      allOk=false;
+      inp.className='surv-input bad';
+      // show correct answer hint below
+      const hint=document.getElementById('sh-'+inp.id.replace('si-',''));
+      if(hint){hint.textContent='→ '+correct;hint.classList.add('show');}
+    }
+  });
+  // process as one question
+  const correct=q.verb.pret; // dummy correct val, we use allOk directly
+  if(allOk){
+    score++;combo++;if(combo>S.bestCombo)S.bestCombo=combo;
+    const xp=combo>=5?20:combo>=3?15:10;sessionXp+=xp;S.totalXp+=xp;
+    showXpPopup('+'+xp+' XP'+(combo>=3?' 🔥':''));if(combo>=3)showCombo(combo);
+  } else {
+    wrongs++;combo=0;document.getElementById('combo-banner').innerHTML='';
+    missed.push({base:q.verb.base,fr:q.verb.fr,field:'3 champs',correct:q.verb.pret+' / '+q.verb.pp});
+    livesLeft--;document.getElementById('lives-row').innerHTML='❤️'.repeat(Math.max(0,livesLeft))+'🖤'.repeat(Math.max(0,3-livesLeft));
+  }
+  answered=true;
+  document.getElementById('chip-g').textContent=score;
+  document.getElementById('chip-r').textContent=wrongs;
+  // feedback banner
+  const fb=document.getElementById('q-fb');
+  fb.className='surv-feedback show '+(allOk?'ok':'bad');
+  document.getElementById('fb-ico').textContent=allOk?'✓':'✗';
+  document.getElementById('fb-ttl').textContent=allOk?"Parfait, les 3 champs sont corrects !":allOk?"":"Certains champs sont incorrects — corrige-les !";
+  persist();
+  // check game over
+  if(!allOk && livesLeft<=0){setTimeout(triggerGameOver,900);return;}
   const last=qIdx===questions.length-1,btn=document.getElementById('q-btn');
   btn.className='action-btn '+(last?'btn-result':'btn-next');
   btn.textContent=last?'Voir les résultats →':'Question suivante →';
@@ -915,10 +1041,6 @@ function processAnswer(ok,correct,q){
   } else {
     wrongs++;combo=0;document.getElementById('combo-banner').innerHTML='';
     missed.push({base:q.verb.base,fr:q.verb.fr,field:q.type.label,correct});
-    if(currentMode==='survival'){
-      livesLeft--;document.getElementById('lives-row').innerHTML='❤️'.repeat(livesLeft)+'🖤'.repeat(3-livesLeft);
-      if(livesLeft<=0){setTimeout(triggerGameOver,800);return;}
-    }
   }
   document.getElementById('chip-g').textContent=score;
   document.getElementById('chip-r').textContent=wrongs;
