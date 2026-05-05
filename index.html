@@ -670,6 +670,15 @@ let answered=false,combo=0,livesLeft=3,sessionXp=0;
 // ============================================================
 function shuffle(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
 function norm(s){return s.trim().toLowerCase().replace(/[\/,]/g,' ').replace(/\s+/g,' ').trim();}
+// Accept if user typed ANY of the slash/comma-separated alternatives
+function matchAnswer(userInput, correct){
+  const u = userInput.trim().toLowerCase();
+  if(!u) return false;
+  // full normalised match
+  if(norm(u) === norm(correct)) return true;
+  // match any individual alternative (split by / or ,)
+  return correct.split(/[\/,]/).map(p=>p.trim().toLowerCase()).filter(Boolean).some(p=>u===p);
+}
 function getLevel(xp){for(let i=LEVELS.length-1;i>=0;i--)if(xp>=LEVELS[i].min)return LEVELS[i];return LEVELS[0];}
 function getLvlPct(xp){let i=0;for(let k=LEVELS.length-1;k>=0;k--)if(xp>=LEVELS[k].min){i=k;break;}const c=LEVELS[i],n=LEVELS[i+1];if(!n)return 100;return Math.min(100,Math.round((xp-c.min)/(n.min-c.min)*100));}
 function getLvlLabel(xp){let i=0;for(let k=LEVELS.length-1;k>=0;k--)if(xp>=LEVELS[k].min){i=k;break;}const n=LEVELS[i+1];return n?xp+' / '+n.min+' XP':xp+' XP';}
@@ -955,7 +964,7 @@ function verify(){
 function verifyFree(){
   const q=questions[qIdx],inp=document.getElementById('q-inp');
   if(!inp||!inp.value.trim())return;
-  const correct=q.type.answer(q.verb),ok=norm(inp.value)===norm(correct);
+  const correct=q.type.answer(q.verb),ok=matchAnswer(inp.value,correct);
   processAnswer(ok,correct,q);
   inp.disabled=true;inp.className='ans-input '+(ok?'ok':'bad');
   showFeedback(ok,correct);
@@ -980,7 +989,7 @@ function verifySurvival(){
   let allOk=true;
   inputs.forEach(inp=>{
     const correct=inp.dataset.correct;
-    const ok=norm(inp.value)===norm(correct);
+    const ok=matchAnswer(inp.value,correct);
     inp.disabled=true;
     if(ok){
       inp.className='surv-input ok';
@@ -1021,10 +1030,10 @@ function verifySurvival(){
 
 function pickMcq(btn,chosen,correct){
   if(answered)return;
-  const ok=norm(chosen)===norm(correct),q=questions[qIdx];
+  const ok=matchAnswer(chosen,correct),q=questions[qIdx];
   processAnswer(ok,correct,q);
   btn.className='mcq-btn '+(ok?'selected-ok':'selected-bad');
-  if(!ok)document.querySelectorAll('.mcq-btn').forEach(b=>{if(norm(b.textContent.trim())===norm(correct))b.className='mcq-btn reveal-ok';});
+  if(!ok)document.querySelectorAll('.mcq-btn').forEach(b=>{if(matchAnswer(b.textContent.trim(),correct))b.className='mcq-btn reveal-ok';});
   document.querySelectorAll('.mcq-btn').forEach(b=>b.disabled=true);
   showFeedback(ok,correct);
   const last=qIdx===questions.length-1,btn2=document.getElementById('q-btn');
